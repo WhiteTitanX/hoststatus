@@ -46,6 +46,11 @@ validateIPVFOUR(){
 
 #Initial
 
+if [ "$EUID" -ne 0 ]; then
+	printf "Please run script as root\n"
+	exit;
+fi
+
 filename="hostips";
 data="";
 
@@ -53,11 +58,11 @@ clear
 
 if [ -f $PWD/$filename  ]; then
 	printf "File exists\nImporting data from file...\n";
-	data=$(sudo cat $PWD/$filename);
+	data=$(cat $PWD/$filename);
 	printf "Done\n";	
 else
 	printf "File does not exist\nCreating file...\n";
-	sudo touch $PWD/$filename
+	touch $PWD/$filename
 	printf "Done\nPlease input ip addresses individually, press e then enter to exit\n";
 	while true; do
 		read input;
@@ -66,12 +71,12 @@ else
 		fi
 		if validateIPVFOUR $input ; then
 			printf "Valid IP $input\n";
-			sudo sh -c "echo '$input ' >> '$PWD/$filename'"; 
+			sh -c "echo '$input ' >> '$PWD/$filename'"; 
 		else
 			printf "Invalid IP $input, please try again\n";
 		fi
 	done
-	data=$(sudo cat $PWD/$filename);
+	data=$(cat $PWD/$filename);
 fi
 
 clear
@@ -92,7 +97,7 @@ while true; do
 	statusarray=();
 	statuscounter=0;
 	for ip in $data; do
-		result="$(sudo ping -q -n -s 2 -W 2 -c 4 $ip)";
+		result="$(ping -q -n -s 2 -W 2 -c 4 $ip)";
 		result="${result##*-}";
 		for part in $result; do
 			if [[ "$part" == *"%"* ]]; then
@@ -127,7 +132,7 @@ while true; do
 		printf "%-15s" "$ip";
 		printf "     "
 		if [ "$sendLogs" == "1" ]; then
-			sudo logger [HOSTSTATUS]: $ip is ${statusarray[$statuscounter]}				
+			logger [HOSTSTATUS]: $ip is ${statusarray[$statuscounter]}				
 		fi
 		case ${statusarray[$statuscounter]} in
 			UP)
