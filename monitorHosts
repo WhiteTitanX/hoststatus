@@ -127,7 +127,7 @@ while true; do
 		printf "%-15s" "$ip";
 		printf "     "
 		if [ "$sendLogs" == "1" ]; then
-			sudo logger $ip is ${statusarray[$statuscounter]}				
+			sudo logger [HOSTSTATUS]: $ip is ${statusarray[$statuscounter]}				
 		fi
 		case ${statusarray[$statuscounter]} in
 			UP)
