@@ -13,7 +13,6 @@ validateIPVFOUR(){
 		if [ "$char" == "." ]; then
 			diff=$((i-lastnum));
 			array[counter]="${1:$lastnum:$diff}";
-			#printf "$counter : ${array[$counter]}\n";
 			counter=$((counter+1));
 			lastnum=$((i+1));
 		fi
@@ -24,7 +23,6 @@ validateIPVFOUR(){
 	len=${#1};
 	diff=$((len-lastnum));
 	array[counter]="${1:$lastnum:$diff}";
-	#printf "$counter : ${array[$counter]}\n";
 	counter=$((counter+1));	
 	re='^[0-9]+$';
 	for (( i=0; i<$counter; i++ )); do
@@ -46,8 +44,18 @@ validateIPVFOUR(){
 	return 0;
 }
 
+listIPs(){
+	clear
+	printf "IP Addresses List\n";
+	for ip in $data; do
+		printf "$ip\n";
+	done
+	printf "\n";
+}
+
 addHosts(){
-	printf "\nPlease input ip addresses individually, press e then enter to exit\n";
+	listIPs
+	printf "Please input ip addresses individually, press e then enter to exit\n";
 	while true; do
 		read input;
 		if [ "$input" == "e" ]; then
@@ -64,11 +72,8 @@ addHosts(){
 }
 
 removeHosts(){
-	printf "IP Addresses List\n";
-	for ip in $data; do
-		printf "$ip\n";
-	done
-	printf "\nPlease input the ip addresses to remove, press e then enter to exit\n";
+	listIPs
+	printf "Please input the ip addresses to remove, press e then enter to exit\n";
 	while true; do
 		read input;
 		if [ "$input" == "e" ]; then
@@ -79,22 +84,45 @@ removeHosts(){
 	data=$(cat $PWD/$filename);
 }
 
-#Initial
+pingHosts(){
+	for ip in $data; do
+		result="$(ping -q -n -s 2 -W 2 -c 4 $ip)";
+		result="${result##*-}";
+		for part in $result; do
+			if [[ "$part" == *"%"* ]]; then
+				result=${part:0:(${#part}-1)};
+				if [ "$result" -gt 25 ] && [ "$result" -lt 100 ]; then
+					result="??";
+				elif [ "$result" -eq 100 ]; then
+					result="DOWN";
+				else
+					result="UP";	
+				fi
+				break;
+			fi
+		done
+		statusarray[statuscounter]="$result";
+		statuscounter=$((statuscounter+1));
+	done
+}
+
+#Entry Point
 
 if [ "$EUID" -ne 0 ]; then
 	printf "Please run script as root\n"
 	exit;
 fi
+clear
 
-filename="hostIPs";
-data="";
+#Initializing global variables
 
 configfilename="hoststatus.conf";
 configdata="";
-
 sendLogs="0";
+filename="hostIPs";
+data="";
 
-clear
+#Load config file
 
 if [ -f $PWD/$configfilename ]; then
 	printf "Config file exists\nImporting data from file...\n";
@@ -109,6 +137,8 @@ else
 	configdata=$(cat $PWD/$configfilename);
 	printf "Done\n";
 fi
+
+#Load config settings
 
 for config in $configdata; do
 	pre=${config%=*};
@@ -127,12 +157,16 @@ for config in $configdata; do
 			;;
 	esac
 done
+printf "\n";	
 
-printf "\n";
+#Load host ips
 
 if [ -f $PWD/$filename ]; then
 	printf "$filename file exists\nImporting data from $filename...\n";
 	data=$(cat $PWD/$filename);
+
+	#Check if the user wants to add more host ips	
+
 	printf "Done\n\nDo you want to add more host ips? [y/n]\n";
 	read -t 3 input;
 	if [ "$input" == "y" ]; then
@@ -145,14 +179,16 @@ else
 	addHosts
 fi
 
+#Check if user wants to remove host ips
+
 printf "\nDo you want to remove host ips? [y/n]\n";
 read -t 3 input;
 if [ "$input" == "y" ]; then
-	clear
 	removeHosts
 fi
-
 clear
+
+#Validating host ips
 
 printf "Validating all ips in file...\n\n";
 for ip in $data; do
@@ -164,44 +200,24 @@ for ip in $data; do
 done
 printf "\nValid ;)\n\nGathering initial data...";
 
+#Start pinging hosts and output results to console
+
 while true; do
 	statusarray=();
 	statuscounter=0;
-	for ip in $data; do
-		result="$(ping -q -n -s 2 -W 2 -c 4 $ip)";
-		result="${result##*-}";
-		for part in $result; do
-			if [[ "$part" == *"%"* ]]; then
-				result=${part:0:(${#part}-1)};
-				#echo "$result";
-				if [ "$result" -gt 25 ] && [ "$result" -lt 100 ]; then
-					result="??";
-				elif [ "$result" -eq 100 ]; then
-					result="DOWN";
-				else
-					result="UP";	
-				fi
-				break;
-			fi
-		done
-		statusarray[statuscounter]="$result";
-		statuscounter=$((statuscounter+1));
-	done
-	
+	pingHosts	
+	statuscounter=0;
 	clear;
-
 	printf "   __ __         __    ______       __         \n";
 	printf "  / // /__  ___ / /_  / __/ /____ _/ /___ _____\n";
 	printf " / _  / _ \\(_-</ __/ _\\ \\/ __/ _ \`/ __/ // (_-<\n";
 	printf "/_//_/\\___/___/\\__/ /___/\\__/\\_,_/\\__/\\_,_/___/\n";
 	printf "\n By Alex C.\n\n";
-
 	printf " HOST                STATUS\n\n";
-	statuscounter=0;
 	for ip in $data; do
 		printf " ";
 		printf "%-15s" "$ip";
-		printf "     "
+		printf "     ";
 		if [ "$sendLogs" == "1" ]; then
 			logger [HOSTSTATUS]: $ip is ${statusarray[$statuscounter]}		
 		fi
@@ -218,7 +234,6 @@ while true; do
 		esac
 		statuscounter=$((statuscounter+1));
 	done
-	
 	date="$(date +'%H:%M:%S %D')";	
 	printf "\n Last Updated: $date\n\n"
 	printf "\n [To exit: Press e then enter] ";
@@ -226,8 +241,7 @@ while true; do
 	read -t 2 input;
 	if [ "$input" == "e" ]; then
 		break;
-	fi	
-	
+	fi		
 	sleep 1;
 done
 
