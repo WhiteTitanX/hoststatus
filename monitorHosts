@@ -69,7 +69,7 @@ else
 	touch $PWD/$configfilename
 	printf "Done\nAppending default config settings...\n";
 	sh -c "echo 'hostIPs_FileName=hostIPs ' >> '$PWD/$configfilename'";
-	sh -c "echo 'writeLogsToSyslog=true ' >> '$PWD/$configfilename'";
+	sh -c "echo 'writeLogsToSyslog=false ' >> '$PWD/$configfilename'";
 	configdata=$(cat $PWD/$configfilename);
 	printf "Done\n";
 fi
