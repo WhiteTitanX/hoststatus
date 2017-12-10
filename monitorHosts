@@ -18,6 +18,9 @@ validateIPVFOUR(){
 			lastnum=$((i+1));
 		fi
 	done
+	if [ "$counter" -ne "3" ]; then
+		return 1;
+	fi
 	len=${#1};
 	diff=$((len-lastnum));
 	array[counter]="${1:$lastnum:$diff}";
@@ -43,6 +46,39 @@ validateIPVFOUR(){
 	return 0;
 }
 
+addHosts(){
+	printf "\nPlease input ip addresses individually, press e then enter to exit\n";
+	while true; do
+		read input;
+		if [ "$input" == "e" ]; then
+			break;
+		fi
+		if validateIPVFOUR $input ; then
+			printf "Valid IP $input\n";
+			sh -c "echo '$input ' >> '$PWD/$filename'"; 
+		else
+			printf "Invalid IP $input, please try again\n";
+		fi
+	done
+	data=$(cat $PWD/$filename);
+}
+
+removeHosts(){
+	printf "IP Addresses List\n";
+	for ip in $data; do
+		printf "$ip\n";
+	done
+	printf "\nPlease input the ip addresses to remove, press e then enter to exit\n";
+	while true; do
+		read input;
+		if [ "$input" == "e" ]; then
+			break;
+		fi
+		sed -i "/$input /d" $PWD/$filename	
+	done
+	data=$(cat $PWD/$filename);
+}
+
 #Initial
 
 if [ "$EUID" -ne 0 ]; then
@@ -50,7 +86,7 @@ if [ "$EUID" -ne 0 ]; then
 	exit;
 fi
 
-filename="hostips";
+filename="hostIPs";
 data="";
 
 configfilename="hoststatus.conf";
@@ -97,25 +133,23 @@ printf "\n";
 if [ -f $PWD/$filename ]; then
 	printf "$filename file exists\nImporting data from $filename...\n";
 	data=$(cat $PWD/$filename);
-	printf "Done\n";
-	sleep 3;	
+	printf "Done\n\nDo you want to add more host ips? [y/n]\n";
+	read -t 3 input;
+	if [ "$input" == "y" ]; then
+		addHosts
+	fi
 else
 	printf "$filename file does not exist\nCreating $filename...\n";
 	touch $PWD/$filename
-	printf "Done\n\nPlease input ip addresses individually, press e then enter to exit\n";
-	while true; do
-		read input;
-		if [ "$input" == "e" ]; then
-			break;
-		fi
-		if validateIPVFOUR $input ; then
-			printf "Valid IP $input\n";
-			sh -c "echo '$input ' >> '$PWD/$filename'"; 
-		else
-			printf "Invalid IP $input, please try again\n";
-		fi
-	done
-	data=$(cat $PWD/$filename);
+	printf "Done\n";
+	addHosts
+fi
+
+printf "\nDo you want to remove host ips? [y/n]\n";
+read -t 3 input;
+if [ "$input" == "y" ]; then
+	clear
+	removeHosts
 fi
 
 clear
